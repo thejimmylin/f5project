@@ -1,0 +1,17 @@
+# Mac
+.DS_Store
+
+# Python
+/.venv
+__pycache__
+
+# VSCode
+/.vscode
+
+# Build
+/dist
+/*.egg-info
+/build
+
+# Internal docs
+.docs
