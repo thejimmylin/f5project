@@ -1,3 +1,11 @@
+"""Publishing package to PyPI
+
+Use this command to "Build & Upload & Cleanup":
+```python
+python setup.py sdist bdist_wheel && python -m twine upload dist/* && rm -rf dist build *egg-info
+```
+"""
+
 from setuptools import setup, find_packages
 
 from pathlib import Path
@@ -7,7 +15,7 @@ long_description = (base_dir / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="f5project",
-    version="0.0.21",
+    version="0.0.24",
     install_requires=[
         "finlab==0.4.5",
         "fugle-trade==0.4.0",
@@ -26,7 +34,7 @@ setup(
     include_package_data=True,
     entry_points={
         "console_scripts": [
-            "f5project = f5project:cli",
+            "f5project = f5project.console_scripts:main",
         ],
     },
     classifiers=[

@@ -1,1 +1,1 @@
-recursive-include f5project/cli/templates *
+recursive-include f5project/console_scripts/templates *

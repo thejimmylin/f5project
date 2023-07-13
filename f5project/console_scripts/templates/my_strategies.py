@@ -27,7 +27,7 @@ def peg_strategy():
         position=position,
         fee_ratio=1.425 / 1000 / 3,
         stop_loss=0.1,
-        upload=True,
+        upload=False,
         name="本益成長比",
         live_performance_start="2021-06-01",
     )

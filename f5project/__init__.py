@@ -18,9 +18,8 @@ from finlab.online.fugle_account import FugleAccount
 from flask import Request
 from keyrings.cryptfile.cryptfile import CryptFileKeyring
 from loguru import logger
-from .cli import cli
 
-__all__ = ["F5ProjectConfig", "F5Project", "cli"]
+__all__ = ["F5ProjectConfig", "F5Project"]
 
 
 class SimpleConfigParser(RawConfigParser):

@@ -1,11 +1,11 @@
 from pathlib import Path
 import sys
 
-__all__ = ["cli"]
+__all__ = ["main"]
 
 
-def cli() -> None:
-    """Entry point for the CLI"""
+def main() -> None:
+    """Entry point for the console scripts."""
 
     if len(sys.argv) != 3:
         raise ValueError("Invalid number of arguments")
