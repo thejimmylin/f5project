@@ -1,0 +1,18 @@
+# Mac
+.DS_Store
+
+# VSCode
+.vscode
+
+# Python
+.venv
+__pycache__
+
+# Secrets
+.secrets
+
+# Data
+.data
+
+# Playground
+playground*

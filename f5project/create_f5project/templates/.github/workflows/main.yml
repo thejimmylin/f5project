@@ -1,0 +1,41 @@
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-to-gcf:
+    name: "Deploy to Google Cloud Function"
+    runs-on: "ubuntu-latest"
+    permissions:
+      contents: "read"
+      id-token: "write"
+
+    steps:
+      - id: "checkout"
+        uses: "actions/checkout@v3"
+
+      - id: "auth"
+        uses: "google-github-actions/auth@v1"
+        with:
+          credentials_json: "${{ secrets.GCF_SERVICE_ACCOUNT }}"
+
+      - id: "deploy"
+        uses: "google-github-actions/deploy-cloud-functions@v1"
+        with:
+          name: "${{ secrets.GCF_FUNCTION_TARGET }}"
+          entry_point: "${{ secrets.GCF_FUNCTION_TARGET }}"
+          ingress_settings: "ALLOW_ALL"
+          runtime: "python310"
+          memory_mb: "2048"
+          timeout: 300
+          env_vars: >
+            FINLAB_API_TOKEN=${{ secrets.FINLAB_API_TOKEN }},
+            FUGLE_ACCOUNT=${{ secrets.FUGLE_ACCOUNT }},
+            FUGLE_PASSWORD=${{ secrets.FUGLE_PASSWORD }},
+            FUGLE_CERT=${{ secrets.FUGLE_CERT }},
+            FUGLE_CERT_PASSWORD=${{ secrets.FUGLE_CERT_PASSWORD }},
+            FUGLE_API_ENTRY=${{ secrets.FUGLE_API_ENTRY }},
+            FUGLE_API_KEY=${{ secrets.FUGLE_API_KEY }},
+            FUGLE_API_SECRET=${{ secrets.FUGLE_API_SECRET }},
+            FUGLE_MARKET_API_KEY=${{ secrets.FUGLE_MARKET_API_KEY }},
