@@ -1,14 +1,25 @@
 from pathlib import Path
 import sys
 
-__all__ = ["create_f5project"]
+__all__ = ["cli"]
 
 
-def create_f5project(dst: Path | str = '.') -> None:
-    """Create a project with templates."""
+def cli() -> None:
+    """Entry point for the CLI"""
 
-    if len(sys.argv) == 2:
-        dst = sys.argv[1]
+    if len(sys.argv) != 3:
+        raise ValueError("Invalid number of arguments")
+
+    _, task, *args = sys.argv
+
+    if task == "create-project":
+        create_project(*args)
+    else:
+        print(f"Unknown task: {task}. `create-project` is the only task available.")
+
+
+def create_project(dst: Path | str = ".") -> None:
+    """Create a project using templates"""
 
     if isinstance(dst, str):
         dst = Path(dst).resolve()

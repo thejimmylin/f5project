@@ -7,8 +7,13 @@ long_description = (base_dir / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="f5project",
-    version="0.0.16",
+    version="0.0.21",
     install_requires=[
+        "finlab==0.4.5",
+        "fugle-trade==0.4.0",
+        "python-dotenv==1.0.0",
+        "functions-framework==3.4.0",
+        "loguru==0.7.0",
         "github-secret-syncer",
     ],
     author="thejimmylin",
@@ -21,7 +26,7 @@ setup(
     include_package_data=True,
     entry_points={
         "console_scripts": [
-            "create-f5project = f5project:create_f5project",
+            "f5project = f5project:cli",
         ],
     },
     classifiers=[
