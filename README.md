@@ -2,37 +2,43 @@
 
 Finlab Fugle for financial freedom.
 
-This library is not ready for production. It's still under development. The document is not complete, either.
+# Quickstart
 
-You may need to read the source code sometimes.
+## With pipx
 
-# Install
-
-You can install it from PyPI.
+Use [pipx](https://github.com/pypa/pipx) to create your F5 project with a template and install all dependencies.
 
 ```sh
-pip install f5project
+cd ~/repos
+pipx run --no-cache f5project create-project my_f5project
+cd my_f5project
+pip install -r requirements.txt
 ```
 
-However, if you haven't used it before, you may want to have a quickstart.
+## With traditional way
 
-You can do that with [pipx](https://github.com/pypa/pipx).
-
-Then, you can create a project with:
+If you don't feel like using pipx, you can also run this with traditional pip.
 
 ```sh
-pipx run --no-cache f5project create-project foo
-```
-
-If you don't feel like using pipx, you can also install it in a virtual environment.
-
-```sh
-cd ~/repos/my_f5project
+cd ~/repos
+mkdir my_f5project
+cd my_f5project
 python3 -m venv .venv
 source .venv/bin/activate
 pip install f5project
-f5project create-project .
+f5project f5project create-project my_f5project
+pip install -r requirements.txt
 ```
+
+Then, follow the instructions:
+
+1. Put all your secrets in `.secrets/index.json` file
+2. Run `python main.py` to see if it works
+3. Run `scripts/setup_github_secrets.py` to sync your secrets with Github secrets
+4. [Optional] Follow the instructions in `scripts/setup_github_secrets.py` to make it a pre-push Git hook
+5. `git push` to deploy your code according to `.github/workflows/main.yml`
+
+The, you can follow the instructions above.
 
 # Why?
 
@@ -48,16 +54,3 @@ When deploying your code on GCF. Some troubles come up and you can't just do it 
 - Sync Github secrets with local config, make CI/CD easier.
 
 Then you can focus on your trading strategy and iterate faster.
-
-# Usages
-
-1. Put all your secrets in `.secrets/index.json` file
-2. Run `python main.py` to see if it works
-3. Run `scripts/setup_github_secrets.py` to sync your secrets with Github secrets
-4. [Optional] Follow the instructions in `scripts/setup_github_secrets.py` to make it a pre-push Git hook
-5. `git push` to deploy your code according to `.github/workflows/main.yml`
-
-# TODO
-
-- Use `pipx` to make it easier to have a quickstart template.
-- Dynamically generate `CI/CD` pipeline YAML file, so we can focus on the code.
