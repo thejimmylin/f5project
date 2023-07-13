@@ -26,7 +26,7 @@ cd my_f5project
 python3 -m venv .venv
 source .venv/bin/activate
 pip install f5project
-f5project f5project create-project my_f5project
+f5project f5project create-project .
 pip install -r requirements.txt
 ```
 
