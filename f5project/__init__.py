@@ -237,20 +237,33 @@ class F5Project:
         data_dir = data_dir if data_dir is not None else Path(tempfile.gettempdir())
         data_dir.mkdir(parents=True, exist_ok=True)
 
+        self.setup_fugle_keyring(reset=True)
+
+        config_path = self.config.to_fugle_config().to_file(data_dir)
+
+        logger.debug(f"Logging in Fugle with config file `{config_path}` and `fugle_market_api_key`")
+        fugle_account = FugleAccount(str(config_path), self.config.fugle_market_api_key)
+        self._fugle_account = fugle_account
+
+    def setup_fugle_keyring(self, reset: bool) -> None:
+        """Configuring Fugle keyring
+
+        This is useful because Fugle SDK uses keyring to store the account and password.
+        Without this, you have to enter the account and password with interactive prompt at the first time.
+
+        if `reset = True`, the old keyring file will be deleted. Without this option, the old keyring file will be used
+        if it exists, and if the account is changed, the "MAC check failed" error will be raised. This is annoying.
+        """
         logger.debug("Using `CryptFileKeyring` as keyring for Fugle login")
         file_keyring = CryptFileKeyring()
         raw_key = self.config.fugle_account
+        if reset:
+            Path(str(file_keyring.file_path)).unlink(missing_ok=True)
         hashed_key = md5(raw_key.encode("utf-8")).hexdigest()
         file_keyring.keyring_key = hashed_key
         keyring.set_keyring(file_keyring)
         keyring.set_password("fugle_trade_sdk:account", self.config.fugle_account, self.config.fugle_password)
         keyring.set_password("fugle_trade_sdk:cert", self.config.fugle_account, self.config.fugle_cert_password)
-
-        config_path = self.config.to_fugle_config().to_file(data_dir)
-
-        logger.debug(f"Logging in Fugle with config file `{config_path}` and `fugle_market_api_key`")
-        fugle_account = FugleAccount(config_path, self.config.fugle_market_api_key)
-        self._fugle_account = fugle_account
 
     def fugle_account(self) -> FugleAccount:
         """Get the Fugle account instance."""
