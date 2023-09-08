@@ -15,7 +15,7 @@ long_description = (base_dir / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="f5project",
-    version="0.0.27",
+    version="0.0.28",
     install_requires=[
         "finlab==0.4.5",
         "fugle-trade==0.4.0",

@@ -4,11 +4,8 @@ import dataclasses
 import functools
 import json
 import logging
-import os
-import sys
 import tempfile
 from configparser import RawConfigParser
-from contextlib import contextmanager
 from hashlib import md5
 from os import environ
 from pathlib import Path
@@ -23,17 +20,12 @@ from finlab.online.fugle_account import FugleAccount
 from flask import Request
 from keyrings.cryptfile.cryptfile import CryptFileKeyring
 
+from .helpers import noprint
+
 logger = logging.getLogger(__name__)
 
 
 __all__ = ["F5ProjectConfig", "F5Project"]
-
-
-@contextmanager
-def no_print():
-    sys.stdout = open(os.devnull, "w")
-    yield
-    sys.stdout = sys.__stdout__
 
 
 class SimpleConfigParser(RawConfigParser):
@@ -117,7 +109,6 @@ class FugleConfig:
         cert_path = data_dir / "fugle-cert.p12"
         config_path = data_dir / "fugle-config.ini"
 
-        logger.debug("Making Fugle certificate and config files")
         config_dict = {
             "Core": {"Entry": self.fugle_api_entry},
             "Cert": {"Path": str(FugleCert.from_string(self.fugle_cert).to_file(cert_path))},
@@ -165,7 +156,7 @@ class F5ProjectConfig:
 
     @classmethod
     def from_json(cls, json_path: Path) -> "F5ProjectConfig":
-        logger.debug(f"Getting `F5ProjectConfig` from `{json_path}`")
+        logger.info(f"Getting `F5ProjectConfig` from `{json_path}`")
         all_values = json.loads(json_path.read_text())
 
         field_values = {}
@@ -180,7 +171,7 @@ class F5ProjectConfig:
 
     @classmethod
     def from_env(cls) -> "F5ProjectConfig":
-        logger.debug("Get `F5ProjectConfig` from environment variables")
+        logger.info("Get `F5ProjectConfig` from environment variables")
         all_values: Any = dict(environ)
 
         field_values = {}
@@ -208,7 +199,7 @@ class F5ProjectConfig:
 class F5Project:
     """F5 Project
 
-    The main class for F5 Project. After initialization, call `setup` for configuring and logging in everything.
+    The main class for F5 Project. After initialization, call `setup` for setting and logging in everything.
     After that, you can access `finlab.data` and call `fugle_account` to retrieve Fugle account instance as you need.
 
     The `call_gcf_endpoint` method calls the decorated function as a GCF endpoint locally.
@@ -216,6 +207,7 @@ class F5Project:
 
     config: F5ProjectConfig
     _gcf_endpoint: Callable | None = None
+    _fugle_config_path: Path | None = None
     _fugle_account: FugleAccount | None = None
 
     def __init__(self, config: F5ProjectConfig) -> None:
@@ -225,74 +217,91 @@ class F5Project:
         """A shortcut for `setup_finlab` and `setup_fugle`"""
 
         self.setup_finlab(data_dir)
+        self.login_finlab()
+
         self.setup_fugle(data_dir)
+        self.login_fugle()
 
-    def setup_finlab(self, data_dir: Path | None = None) -> None:
-        """Configuring and logging in Finlab"""
+    def setup_finlab(self, data_dir: Path | None = None) -> Path:
+        """Setting up Finlab"""
 
-        logger.debug("Configuring and logging in Finlab")
+        logger.info("Setting Finlab")
 
         data_dir = data_dir if data_dir is not None else Path(tempfile.gettempdir())
         data_dir.mkdir(parents=True, exist_ok=True)
 
         storage_path = data_dir / "finlab_db"
-        logger.debug(f"Using Finlab file storage at `{storage_path}`")
         storage = finlab.data.FileStorage(str(storage_path))
+        logger.info(f"Using storage file: `{storage_path}`")
         finlab.data.set_storage(storage)
 
-        logger.debug("Logging in Finlab with `finlab_api_token`")
+        return storage_path
 
-        with no_print():
+    def login_finlab(self) -> None:
+        """Logging in Finlab"""
+
+        logger.info("Logging in Finlab")
+
+        with noprint():
             finlab.login(self.config.finlab_api_token)
 
-    def setup_fugle(self, data_dir: Path | None = None) -> None:
-        """Configuring and logging in Fugle"""
+    def setup_fugle(self, data_dir: Path | None = None, reset=True) -> None:
+        """Setting up Fugle"""
 
-        logger.debug("Configuring and logging in Fugle")
+        logger.info("Setting up Fugle")
 
         data_dir = data_dir if data_dir is not None else Path(tempfile.gettempdir())
         data_dir.mkdir(parents=True, exist_ok=True)
 
-        self.setup_fugle_keyring(reset=True)
+        self._setup_fugle_keyring(reset=reset)
 
-        config_path = self.config.to_fugle_config().to_file(data_dir)
+        self._fugle_config_path = self.config.to_fugle_config().to_file(data_dir)
+        logger.info(f"Using config file: `{self._fugle_config_path}`")
 
-        logger.debug(f"Logging in Fugle with config file `{config_path}` and `fugle_market_api_key`")
-        fugle_account = FugleAccount(str(config_path), self.config.fugle_market_api_key)
-        self._fugle_account = fugle_account
+    def _setup_fugle_keyring(self, reset: bool) -> None:
+        """Setting up Fugle keyring
 
-    def setup_fugle_keyring(self, reset: bool) -> None:
-        """Configuring Fugle keyring
+        This is useful because Fugle SDK uses keyring to store the account and password. Without this, you have to
+        enter the account and password with interactive prompt.
 
-        This is useful because Fugle SDK uses keyring to store the account and password.
-        Without this, you have to enter the account and password with interactive prompt at the first time.
-
-        if `reset = True`, the old keyring file will be deleted. Without this option, the old keyring file will be used
-        if it exists, and if the account is changed, the "MAC check failed" error will be raised. This is annoying.
+        If `reset = True`, the old keyring file will be deleted. Otherwise, the old keyring file will be used if it
+        exists. When the account is changed, "MAC check failed" error will be raised, which is a bit annoying.
         """
-        logger.debug("Using `CryptFileKeyring` as keyring for Fugle login")
         file_keyring = CryptFileKeyring()
-        raw_key = self.config.fugle_account
+
         if reset:
             Path(str(file_keyring.file_path)).unlink(missing_ok=True)
+
+        raw_key = self.config.fugle_account
         hashed_key = md5(raw_key.encode("utf-8")).hexdigest()
         file_keyring.keyring_key = hashed_key
+
         keyring.set_keyring(file_keyring)
         keyring.set_password("fugle_trade_sdk:account", self.config.fugle_account, self.config.fugle_password)
         keyring.set_password("fugle_trade_sdk:cert", self.config.fugle_account, self.config.fugle_cert_password)
+
+    def login_fugle(self) -> None:
+        """Logging in Fugle"""
+
+        if self._fugle_config_path is None:
+            raise ValueError("Fugle is not set up yet. please call `setup_fugle` first")
+
+        logger.info("Logging in Fugle")
+        fugle_account = FugleAccount(str(self._fugle_config_path), self.config.fugle_market_api_key)
+        self._fugle_account = fugle_account
 
     def fugle_account(self) -> FugleAccount:
         """Get the Fugle account instance."""
 
         if self._fugle_account is None:
-            raise ValueError("The project is not logged in yet. Please call `login` first.")
+            raise ValueError("Fugle is not logged in yet. Please call `login_fugle` first.")
 
         return self._fugle_account
 
     def gcf_endpoint(self, func: Callable) -> Callable:
         """Decorator for registering a function as a GCF endpoint"""
 
-        logger.debug(f"Registering `{func.__name__}` as GCF endpoint")
+        logger.info(f"Registering `{func.__name__}` as GCF endpoint")
 
         if self._gcf_endpoint is not None:
             raise ValueError("Only one GCF endpoint is allowed")
@@ -310,8 +319,8 @@ class F5Project:
         self._gcf_endpoint = wrapper
         return wrapper
 
-    def call_gcf_endpoint(self, directly: bool = False, params: dict = {}, basic_logging=True) -> Any:
-        """Call the GCF endpoint
+    def call_gcf_endpoint(self, directly: bool = False, params: dict = {}) -> Any:
+        """Call the registered GCF endpoint
 
         If `directly = False`, simulate performing a request to the GCF endpoint.
         Otherwise, call the decorated function directly.
@@ -337,15 +346,17 @@ class F5Project:
         params = args.params or params
 
         if directly:
-            logger.debug(f"Calling `{self._gcf_endpoint.__name__}` with `**params` where `params = {params}`")
+            logger.info(f"Calling `{self._gcf_endpoint.__name__}` directly. This is like calling a normal function.")
+            logger.info(f"Calling `{self._gcf_endpoint.__name__}` with `**params` where `params = {params}`")
             result = self._gcf_endpoint(**params)
         else:
-            logger.debug(f"Requesting `{self._gcf_endpoint.__name__}` with `json = {params}`")
+            logger.info(f"Simulating how GCF calls `{self._gcf_endpoint.__name__}`, loading the `main.py` module")
             client = functions_framework.create_app(target=self._gcf_endpoint.__name__).test_client()
+            logger.info(f"Requesting `{self._gcf_endpoint.__name__}` with `json = {params}`")
             response = client.post("/", json=params)
             result = response.get_json()
 
-        logger.debug(f"{result = }")
+        logger.info(f"{result = }")
         return result
 
     def setup_github_secrets(self) -> None:
@@ -373,6 +384,6 @@ class F5Project:
 
         dotenv.set_key(dotenv_path, "GCF_FUNCTION_TARGET", self._gcf_endpoint.__name__)
 
-        logger.debug(f"Synchronizing secrets to {config.repo_synced['repo']} with dotenv file at {dotenv_path}")
+        logger.info(f"Synchronizing secrets to {config.repo_synced['repo']} with dotenv file at {dotenv_path}")
 
         github_secret_syncer.sync_secrets(dotenv_path, **config.repo_synced, delete_missing=True)
