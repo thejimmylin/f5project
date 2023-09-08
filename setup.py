@@ -15,14 +15,14 @@ long_description = (base_dir / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="f5project",
-    version="0.0.26",
+    version="0.0.27",
     install_requires=[
         "finlab==0.4.5",
         "fugle-trade==0.4.0",
         "python-dotenv==1.0.0",
         "functions-framework==3.4.0",
         "loguru==0.7.0",
-        "github-secret-syncer",
+        "github-secret-syncer==0.0.10",
     ],
     author="thejimmylin",
     author_email="b00502013@gmail.com",

@@ -3,8 +3,12 @@ import base64
 import dataclasses
 import functools
 import json
+import logging
+import os
+import sys
 import tempfile
 from configparser import RawConfigParser
+from contextlib import contextmanager
 from hashlib import md5
 from os import environ
 from pathlib import Path
@@ -13,13 +17,23 @@ from typing import Any, Callable
 import dotenv
 import finlab
 import functions_framework
+import github_secret_syncer
 import keyring
 from finlab.online.fugle_account import FugleAccount
 from flask import Request
 from keyrings.cryptfile.cryptfile import CryptFileKeyring
-from loguru import logger
+
+logger = logging.getLogger(__name__)
+
 
 __all__ = ["F5ProjectConfig", "F5Project"]
+
+
+@contextmanager
+def no_print():
+    sys.stdout = open(os.devnull, "w")
+    yield
+    sys.stdout = sys.__stdout__
 
 
 class SimpleConfigParser(RawConfigParser):
@@ -227,7 +241,9 @@ class F5Project:
         finlab.data.set_storage(storage)
 
         logger.debug("Logging in Finlab with `finlab_api_token`")
-        finlab.login(self.config.finlab_api_token)
+
+        with no_print():
+            finlab.login(self.config.finlab_api_token)
 
     def setup_fugle(self, data_dir: Path | None = None) -> None:
         """Configuring and logging in Fugle"""
@@ -294,7 +310,7 @@ class F5Project:
         self._gcf_endpoint = wrapper
         return wrapper
 
-    def call_gcf_endpoint(self, directly: bool = False, params: dict = {}) -> Any:
+    def call_gcf_endpoint(self, directly: bool = False, params: dict = {}, basic_logging=True) -> Any:
         """Call the GCF endpoint
 
         If `directly = False`, simulate performing a request to the GCF endpoint.
@@ -321,15 +337,15 @@ class F5Project:
         params = args.params or params
 
         if directly:
-            logger.info(f"Calling `{self._gcf_endpoint.__name__}` with `**params` where `params = {params}`")
+            logger.debug(f"Calling `{self._gcf_endpoint.__name__}` with `**params` where `params = {params}`")
             result = self._gcf_endpoint(**params)
         else:
-            logger.info(f"Requesting `{self._gcf_endpoint.__name__}` with `json = {params}`")
+            logger.debug(f"Requesting `{self._gcf_endpoint.__name__}` with `json = {params}`")
             client = functions_framework.create_app(target=self._gcf_endpoint.__name__).test_client()
             response = client.post("/", json=params)
             result = response.get_json()
 
-        logger.success(f"{result = }")
+        logger.debug(f"{result = }")
         return result
 
     def setup_github_secrets(self) -> None:
@@ -337,8 +353,6 @@ class F5Project:
 
         To ensure the secrets are always up-to-date, you may want to call this method in your Git pre-push hook.
         """
-
-        import github_secret_syncer
 
         config = self.config
 
